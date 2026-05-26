@@ -419,7 +419,7 @@ const SHEET_NAME_P = 'Planilha2'; // aba projetos (se criada)
 // Para escrita, usamos o Apps Script Web App
 
 // Apps Script URL — você vai preencher depois da configuração
-let APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbypIouADfOww9UO_VdDvMU6WsBXfoKft8GztH-NIpkh3q5ZOYYEbCGP-ekPH_ZFEnVqgg/exec';
+let APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbynFkM_omqtFAsZdE7HHP1xvqzoiwm9r6Q4JO5mti_2euDvGM9hbJSY0CM8mBN0aNeGxA/exec';
 
 // ══════════════════════════════════════════════
 // STATE — cache local + sync com sheets
@@ -497,10 +497,13 @@ async function syncFromSheet() {
           const hs = String(t.hora);
           if (hs.includes('1899') || hs.includes('T')) {
             const hd = new Date(hs);
-            const hh = String(hd.getUTCHours()).padStart(2,'0');
-            const mm = String(hd.getUTCMinutes()).padStart(2,'0');
+            // Sheets stores BRT time as UTC in 1899 epoch: subtract 3h
+            const totalMins = hd.getUTCHours() * 60 + hd.getUTCMinutes() - 180;
+            const corrected = ((totalMins % 1440) + 1440) % 1440;
+            const hh = String(Math.floor(corrected/60)).padStart(2,'0');
+            const mm = String(corrected%60).padStart(2,'0');
             time = hh + ':' + mm;
-          } else if (/^\d{2}:\d{2}/.test(hs)) {
+          } else if (hs.includes(':')) {
             time = hs.slice(0,5);
           }
         }
