@@ -419,7 +419,7 @@ const SHEET_NAME_P = 'Planilha2'; // aba projetos (se criada)
 // Para escrita, usamos o Apps Script Web App
 
 // Apps Script URL — você vai preencher depois da configuração
-let APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbx96tqpFao3AnD5EbEy7XG_BfjnHqVWqxXxgCm3pZq79whvhDehTP7cqigtgNO2RNkUdA/exec';
+let APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxhn2MioDi9yiLkt9hQwaYBtFq3_5NOSIWWI0nCjv-wDHEoiqklYAW6y73OfXcClmrQGw/exec';
 
 // ══════════════════════════════════════════════
 // STATE — cache local + sync com sheets
@@ -456,14 +456,11 @@ function setSyncStatus(st) {
 }
 
 async function syncToSheet(action, data) {
-  if (!APPS_SCRIPT_URL) return; // sem URL configurada, só local
+  if (!APPS_SCRIPT_URL) return;
   setSyncStatus('syncing');
   try {
-    const res = await fetch(APPS_SCRIPT_URL, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ action, data })
-    });
+    const url = APPS_SCRIPT_URL + '?action=' + action + '&data=' + encodeURIComponent(JSON.stringify(data));
+    const res = await fetch(url, {redirect: 'follow'});
     const json = await res.json();
     if (json.status === 'ok') setSyncStatus('ok');
     else throw new Error(json.error || 'erro');
@@ -477,7 +474,7 @@ async function syncFromSheet() {
   if (!APPS_SCRIPT_URL) { setSyncStatus('ok'); return; }
   setSyncStatus('syncing');
   try {
-    const res = await fetch(APPS_SCRIPT_URL + '?action=getAll');
+    const res = await fetch(APPS_SCRIPT_URL + '?action=getAll', {redirect: 'follow'});
     const json = await res.json();
     if (json.tasks) {
       S.tasks = json.tasks;
