@@ -491,20 +491,19 @@ async function syncFromSheet() {
             date = ds.split('T')[0];
           }
         }
-        // Parse hora — Sheets corrupts time to 1899 date, extract HH:MM
+        // Parse hora
         let time = '';
         if (t.hora) {
-          const hs = String(t.hora);
-          if (hs.includes('1899') || hs.includes('T')) {
-            const hd = new Date(hs);
-            // Sheets stores BRT time as UTC in 1899 epoch: subtract 3h
-            const totalMins = hd.getUTCHours() * 60 + hd.getUTCMinutes() - 180;
-            const corrected = ((totalMins % 1440) + 1440) % 1440;
-            const hh = String(Math.floor(corrected/60)).padStart(2,'0');
-            const mm = String(corrected%60).padStart(2,'0');
-            time = hh + ':' + mm;
-          } else if (hs.includes(':')) {
+          const hs = String(t.hora).trim();
+          // Se já vem como HH:MM (string limpa), usa direto
+          if (/^\d{1,2}:\d{2}$/.test(hs)) {
             time = hs.slice(0,5);
+          } else if (hs.includes('T') || hs.includes('1899')) {
+            // Sheets corrompeu como data — extrai hora local do objeto Date
+            const hd = new Date(hs);
+            const hh = String(hd.getHours()).padStart(2,'0');
+            const mm = String(hd.getMinutes()).padStart(2,'0');
+            time = hh + ':' + mm;
           }
         }
         return {
