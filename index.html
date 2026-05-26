@@ -477,8 +477,26 @@ async function syncFromSheet() {
     const res = await fetch(APPS_SCRIPT_URL + '?action=getAll', {redirect: 'follow'});
     const json = await res.json();
     if (json.tasks) {
-      S.tasks = json.tasks;
-      S.projects = json.projects || [];
+      S.tasks = json.tasks.map(t => ({
+        id: Number(t.id),
+        name: t.nome || t.name || '',
+        cat: t.categoria || t.cat || 'Pessoal',
+        prio: t.prioridade || t.prio || 'media',
+        date: t.data ? String(t.data).split('T')[0] : '',
+        time: t.hora && String(t.hora).includes('T') ? String(t.hora).split('T')[1].slice(0,5) : (t.hora||t.time||''),
+        notes: t.notas || t.notes || '',
+        projectId: t.projeto_id || t.projectId || null,
+        done: t.feita === true || t.feita === 'true' || t.feita === 1,
+        doneDate: t.feita_em ? String(t.feita_em).split('T')[0] : null,
+        createdAt: t.criada_em ? String(t.criada_em).split('T')[0] : ''
+      }));
+      S.projects = (json.projects||[]).map(p => ({
+        id: Number(p.id),
+        name: p.nome || p.name || '',
+        cat: p.categoria || p.cat || 'Pessoal',
+        desc: p.descricao || p.desc || '',
+        deadline: p.prazo ? String(p.prazo).split('T')[0] : ''
+      }));
       S.nextId = Math.max(...[...S.tasks, ...S.projects].map(x=>x.id||0), S.nextId) + 1;
       saveLocal();
     }
@@ -732,20 +750,25 @@ function openEdit(id,e){
 
 async function saveTask(){
   const name=document.getElementById('fName').value.trim(); if(!name){document.getElementById('fName').focus();return;}
+  const id = editId || S.nextId++;
   const taskData = {
-    id: editId || S.nextId++,
-    name, cat:document.getElementById('fCat').value,
+    id, name, cat:document.getElementById('fCat').value,
     prio:document.getElementById('fPrio').value, date:document.getElementById('fDate').value,
     time:document.getElementById('fTime').value, notes:document.getElementById('fNotes').value.trim(),
     projectId:document.getElementById('fProj').value||null, done:false, createdAt:td()
   };
+  const sheetData = {
+    id, nome:taskData.name, categoria:taskData.cat, prioridade:taskData.prio,
+    data:taskData.date, hora:taskData.time, notas:taskData.notes,
+    projeto_id:taskData.projectId||'', feita:false, feita_em:'', criada_em:taskData.createdAt
+  };
   if(editId){
     const idx=S.tasks.findIndex(t=>t.id===editId);
-    if(idx>=0){ taskData.done=S.tasks[idx].done; taskData.doneDate=S.tasks[idx].doneDate; S.tasks[idx]=taskData; }
-    await syncToSheet('updateTask', taskData);
+    if(idx>=0){ taskData.done=S.tasks[idx].done; taskData.doneDate=S.tasks[idx].doneDate; S.tasks[idx]=taskData; sheetData.feita=taskData.done; sheetData.feita_em=taskData.doneDate||''; }
+    await syncToSheet('updateTask', sheetData);
   } else {
     S.tasks.push(taskData);
-    await syncToSheet('addTask', taskData);
+    await syncToSheet('addTask', sheetData);
   }
   saveLocal(); closeM('mTask'); render();
 }
@@ -804,7 +827,10 @@ async function toggleTask(id,e){
   e.stopPropagation();
   const tk=S.tasks.find(t=>t.id===id); if(!tk)return;
   tk.done=!tk.done; tk.doneDate=tk.done?td():null;
-  await syncToSheet('updateTask',tk);
+  const sheetTk = { id:tk.id, nome:tk.name, categoria:tk.cat, prioridade:tk.prio,
+    data:tk.date, hora:tk.time||'', notas:tk.notes||'', projeto_id:tk.projectId||'',
+    feita:tk.done, feita_em:tk.doneDate||'', criada_em:tk.createdAt||'' };
+  await syncToSheet('updateTask', sheetTk);
   saveLocal(); render();
 }
 
