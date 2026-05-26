@@ -419,7 +419,7 @@ const SHEET_NAME_P = 'Planilha2'; // aba projetos (se criada)
 // Para escrita, usamos o Apps Script Web App
 
 // Apps Script URL — você vai preencher depois da configuração
-let APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbynFkM_omqtFAsZdE7HHP1xvqzoiwm9r6Q4JO5mti_2euDvGM9hbJSY0CM8mBN0aNeGxA/exec';
+let APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwb8osqGdx8hwIJQLfh997DkX-l3X8Y0tc3r7G2Mqjs0m2snSZwhvsMM-5l2GnGmd9faw/exec';
 
 // ══════════════════════════════════════════════
 // STATE — cache local + sync com sheets
@@ -491,19 +491,12 @@ async function syncFromSheet() {
             date = ds.split('T')[0];
           }
         }
-        // Parse hora
+        // Parse hora — limpa qualquer formato pra HH:MM
         let time = '';
         if (t.hora) {
-          const hs = String(t.hora).trim();
-          // Se já vem como HH:MM (string limpa), usa direto
-          if (/^\d{1,2}:\d{2}$/.test(hs)) {
-            time = hs.slice(0,5);
-          } else if (hs.includes('T') || hs.includes('1899')) {
-            // Sheets corrompeu como data — extrai hora local do objeto Date
-            const hd = new Date(hs);
-            const hh = String(hd.getHours()).padStart(2,'0');
-            const mm = String(hd.getMinutes()).padStart(2,'0');
-            time = hh + ':' + mm;
+          const hs = String(t.hora).trim().replace('t:','');
+          if (hs.includes(':')) {
+            time = hs.slice(0,5); // pega só HH:MM
           }
         }
         return {
