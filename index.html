@@ -419,7 +419,7 @@ const SHEET_NAME_P = 'Planilha2'; // aba projetos (se criada)
 // Para escrita, usamos o Apps Script Web App
 
 // Apps Script URL — você vai preencher depois da configuração
-let APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxhn2MioDi9yiLkt9hQwaYBtFq3_5NOSIWWI0nCjv-wDHEoiqklYAW6y73OfXcClmrQGw/exec';
+let APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbypIouADfOww9UO_VdDvMU6WsBXfoKft8GztH-NIpkh3q5ZOYYEbCGP-ekPH_ZFEnVqgg/exec';
 
 // ══════════════════════════════════════════════
 // STATE — cache local + sync com sheets
@@ -477,19 +477,46 @@ async function syncFromSheet() {
     const res = await fetch(APPS_SCRIPT_URL + '?action=getAll', {redirect: 'follow'});
     const json = await res.json();
     if (json.tasks) {
-      S.tasks = json.tasks.map(t => ({
-        id: Number(t.id),
-        name: t.nome || t.name || '',
-        cat: t.categoria || t.cat || 'Pessoal',
-        prio: t.prioridade || t.prio || 'media',
-        date: t.data ? String(t.data).split('T')[0] : '',
-        time: t.hora && String(t.hora).includes('T') ? String(t.hora).split('T')[1].slice(0,5) : (t.hora||t.time||''),
-        notes: t.notas || t.notes || '',
-        projectId: t.projeto_id || t.projectId || null,
-        done: t.feita === true || t.feita === 'true' || t.feita === 1,
-        doneDate: t.feita_em ? String(t.feita_em).split('T')[0] : null,
-        createdAt: t.criada_em ? String(t.criada_em).split('T')[0] : ''
-      }));
+      S.tasks = json.tasks.map(t => {
+        // Parse date — comes as ISO string from Sheets
+        let date = '';
+        if (t.data) {
+          const ds = String(t.data);
+          if (ds.includes('T')) {
+            // Sheets sends UTC, adjust to BRT (-3)
+            const d = new Date(ds);
+            d.setHours(d.getHours() + 3);
+            date = d.toISOString().split('T')[0];
+          } else {
+            date = ds.split('T')[0];
+          }
+        }
+        // Parse hora — Sheets corrupts time to 1899 date, extract HH:MM
+        let time = '';
+        if (t.hora) {
+          const hs = String(t.hora);
+          if (hs.includes('1899') || hs.includes('T')) {
+            const hd = new Date(hs);
+            const hh = String(hd.getUTCHours()).padStart(2,'0');
+            const mm = String(hd.getUTCMinutes()).padStart(2,'0');
+            time = hh + ':' + mm;
+          } else if (/^\d{2}:\d{2}/.test(hs)) {
+            time = hs.slice(0,5);
+          }
+        }
+        return {
+          id: Number(t.id),
+          name: t.nome || t.name || '',
+          cat: t.categoria || t.cat || 'Pessoal',
+          prio: t.prioridade || t.prio || 'media',
+          date, time,
+          notes: t.notas || t.notes || '',
+          projectId: t.projeto_id || t.projectId || null,
+          done: t.feita === true || t.feita === 'true' || t.feita === 1,
+          doneDate: t.feita_em ? String(t.feita_em).split('T')[0] : null,
+          createdAt: t.criada_em ? String(t.criada_em).split('T')[0] : ''
+        };
+      });
       S.projects = (json.projects||[]).map(p => ({
         id: Number(p.id),
         name: p.nome || p.name || '',
